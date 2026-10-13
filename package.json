@@ -1,0 +1,15 @@
+{
+  "name": "messaging-app",
+  "private": true,
+  "type": "module",
+  "scripts": {},
+  "license": "MIT",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.11.2",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.11.2"
+}
