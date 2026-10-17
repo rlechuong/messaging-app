@@ -4,4 +4,10 @@ packages:
 
 catalog:
   typescript: ~6.0.3
+  vitest: ^5.0.5
   zod: ^4.6.7
+
+minimumReleaseAgeExclude:
+  - "@vitest/mocker@5.0.5"
+  - "@vitest/spy@5.0.5"
+  - vitest@5.0.5

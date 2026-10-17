@@ -5,12 +5,17 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch src/server.ts",
     "start": "node src/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.2",
-    "typescript": "catalog:"
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.3.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "express": "^5.3.0",
