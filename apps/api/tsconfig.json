@@ -9,5 +9,5 @@
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true
   },
-  "include": ["src", "prisma7.config.ts"]
+  "include": ["src", "prisma7.config.ts", "vitest.config.ts"]
 }

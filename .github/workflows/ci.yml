@@ -14,6 +14,20 @@ jobs:
     name: Format, lint, typecheck, test
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: messaging_app
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: messaging_app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Check out repository
@@ -42,3 +56,5 @@ jobs:
 
       - name: Test
         run: pnpm test
+        env:
+          DATABASE_URL: postgresql://messaging_app:postgres@localhost:5432/messaging_app_test
