@@ -7,7 +7,7 @@
     "postinstall": "pnpm db:generate",
     "start": "node src/server.ts",
     "db:generate": "prisma generate --no-hints",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate dev && pnpm db:generate",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc"
