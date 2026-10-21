@@ -72,3 +72,11 @@ export const validateSessionToken = async (prisma: PrismaClient, token: string) 
 
   return { session: { id: session.id, expiresAt }, user: session.user };
 };
+
+export const invalidateSession = async (prisma: PrismaClient, sessionId: string) => {
+  await prisma.session.deleteMany({
+    where: {
+      id: sessionId,
+    },
+  });
+};

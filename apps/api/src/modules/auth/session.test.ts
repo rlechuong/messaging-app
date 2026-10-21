@@ -6,13 +6,25 @@ import {
   SESSION_DURATION_MS,
   SESSION_RENEWAL_THRESHOLD_MS,
   createSession,
+  invalidateSession,
   validateSessionToken,
 } from "./session.ts";
 import { generateSessionToken, hashSessionToken } from "./session-token.ts";
 
+const findSessionByToken = (token: string) =>
+  testPrisma.session.findUniqueOrThrow({ where: { tokenHash: hashSessionToken(token) } });
+
+const setSessionExpiry = async (token: string, expiresAt: Date) => {
+  await testPrisma.session.update({
+    where: { tokenHash: hashSessionToken(token) },
+    data: { expiresAt },
+  });
+};
+
 describe("createSession", () => {
   it("stores only the hash of the token", async () => {
     const user = await createTestUser();
+
     const { token } = await createSession(testPrisma, user.id);
 
     const sessionByHash = await testPrisma.session.findUnique({
@@ -25,38 +37,29 @@ describe("createSession", () => {
         tokenHash: token,
       },
     });
-
     expect(sessionByHash).not.toBeNull();
     expect(sessionByPlainToken).toBeNull();
   });
 
   it("links the session to the user", async () => {
     const user = await createTestUser();
+
     const { token } = await createSession(testPrisma, user.id);
 
-    const sessionByHash = await testPrisma.session.findUniqueOrThrow({
-      where: {
-        tokenHash: hashSessionToken(token),
-      },
-    });
-
-    expect(sessionByHash.userId).toBe(user.id);
+    const storedSession = await findSessionByToken(token);
+    expect(storedSession.userId).toBe(user.id);
   });
 
   it("sets expiresAt about 30 days in the future", async () => {
     const user = await createTestUser();
+
     const before = Date.now();
     const { token } = await createSession(testPrisma, user.id);
     const after = Date.now();
 
-    const sessionByHash = await testPrisma.session.findUniqueOrThrow({
-      where: {
-        tokenHash: hashSessionToken(token),
-      },
-    });
-
-    expect(sessionByHash.expiresAt.getTime()).toBeGreaterThanOrEqual(before + SESSION_DURATION_MS);
-    expect(sessionByHash.expiresAt.getTime()).toBeLessThanOrEqual(after + SESSION_DURATION_MS);
+    const storedSession = await findSessionByToken(token);
+    expect(storedSession.expiresAt.getTime()).toBeGreaterThanOrEqual(before + SESSION_DURATION_MS);
+    expect(storedSession.expiresAt.getTime()).toBeLessThanOrEqual(after + SESSION_DURATION_MS);
   });
 });
 
@@ -84,20 +87,13 @@ describe("validateSessionToken", () => {
   it("returns null and deletes the session for an expired token", async () => {
     const user = await createTestUser();
     const { token } = await createSession(testPrisma, user.id);
-    await testPrisma.session.update({
-      where: {
-        tokenHash: hashSessionToken(token),
-      },
-      data: {
-        expiresAt: new Date(Date.now() - 1000),
-      },
-    });
+    await setSessionExpiry(token, new Date(Date.now() - 1000));
 
     const result = await validateSessionToken(testPrisma, token);
+
     const storedSession = await testPrisma.session.findUnique({
       where: { tokenHash: hashSessionToken(token) },
     });
-
     expect(result).toBeNull();
     expect(storedSession).toBeNull();
   });
@@ -105,26 +101,14 @@ describe("validateSessionToken", () => {
   it("extends expiresAt when the session is within the renewal threshold", async () => {
     const user = await createTestUser();
     const { token } = await createSession(testPrisma, user.id);
-    await testPrisma.session.update({
-      where: {
-        tokenHash: hashSessionToken(token),
-      },
-      data: {
-        expiresAt: new Date(Date.now() + SESSION_RENEWAL_THRESHOLD_MS - DAY_MS),
-      },
-    });
+    await setSessionExpiry(token, new Date(Date.now() + SESSION_RENEWAL_THRESHOLD_MS - DAY_MS));
 
     const before = Date.now();
     const result = await validateSessionToken(testPrisma, token);
     const after = Date.now();
     if (!result) throw new Error("Expected a valid session.");
 
-    const storedSession = await testPrisma.session.findUniqueOrThrow({
-      where: {
-        tokenHash: hashSessionToken(token),
-      },
-    });
-
+    const storedSession = await findSessionByToken(token);
     expect(result.session.expiresAt).toEqual(storedSession.expiresAt);
     expect(storedSession.expiresAt.getTime()).toBeGreaterThanOrEqual(before + SESSION_DURATION_MS);
     expect(storedSession.expiresAt.getTime()).toBeLessThanOrEqual(after + SESSION_DURATION_MS);
@@ -147,5 +131,39 @@ describe("validateSessionToken", () => {
     if (!result) throw new Error("Expected a valid session.");
 
     expect(result.user).not.toHaveProperty("passwordHash");
+  });
+});
+
+describe("invalidateSession", () => {
+  it("stops the token from working", async () => {
+    const user = await createTestUser();
+    const { token } = await createSession(testPrisma, user.id);
+    const session = await findSessionByToken(token);
+
+    await invalidateSession(testPrisma, session.id);
+
+    expect(await validateSessionToken(testPrisma, token)).toBeNull();
+  });
+
+  it("doesn't throw for an already-deleted session", async () => {
+    const user = await createTestUser();
+    const { token } = await createSession(testPrisma, user.id);
+    const session = await findSessionByToken(token);
+    await invalidateSession(testPrisma, session.id);
+
+    await expect(invalidateSession(testPrisma, session.id)).resolves.toBeUndefined();
+  });
+
+  it("doesn't affect the user's other sessions", async () => {
+    const user = await createTestUser();
+    const { token: loggedOutToken } = await createSession(testPrisma, user.id);
+    const { token: otherToken } = await createSession(testPrisma, user.id);
+    const loggedOutSession = await findSessionByToken(loggedOutToken);
+
+    await invalidateSession(testPrisma, loggedOutSession.id);
+
+    expect(await validateSessionToken(testPrisma, otherToken)).toMatchObject({
+      user: { id: user.id },
+    });
   });
 });
