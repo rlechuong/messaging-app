@@ -12,6 +12,14 @@
     "test:watch": "vitest",
     "typecheck": "tsc"
   },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "argon2": "^0.45.1",
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
@@ -21,13 +29,5 @@
     "supertest": "^7.3.1",
     "typescript": "catalog:",
     "vitest": "catalog:"
-  },
-  "dependencies": {
-    "@prisma/adapter-pg": "^7.10.1",
-    "@prisma/client": "^7.10.1",
-    "argon2": "^0.45.1",
-    "express": "^5.3.0",
-    "pg": "^8.23.1",
-    "zod": "catalog:"
   }
 }
