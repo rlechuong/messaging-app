@@ -3,10 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "vitest run",
     "typecheck": "tsc"
   },
+  "dependencies": {
+    "zod": "catalog:"
+  },
   "devDependencies": {
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "exports": {
     ".": "./src/index.ts"
