@@ -22,6 +22,20 @@ export default defineConfig(
   },
 
   {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
+
+  {
     files: ["**/*.js"],
     extends: [tseslint.configs.disableTypeChecked],
   },

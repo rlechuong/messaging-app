@@ -8,5 +8,6 @@ export default defineConfig({
     globalSetup: ["./src/test/global-setup.ts"],
     setupFiles: ["./src/test/setup.ts"],
     fileParallelism: false,
+    restoreMocks: true,
   },
 });
