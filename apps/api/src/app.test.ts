@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import request from "supertest";
-import { createApp } from "./app.ts";
+import { createTestApp } from "./test/app.ts";
 
 describe("GET /api/health", () => {
   it("responds with 200 and status ok", async () => {
-    const app = createApp();
+    const app = createTestApp();
 
     const response = await request(app).get("/api/health");
 
@@ -15,7 +15,7 @@ describe("GET /api/health", () => {
 
 describe("API error responses", () => {
   it("returns a JSON 404 for an unknown /api route", async () => {
-    const app = createApp();
+    const app = createTestApp();
 
     const response = await request(app).get("/api/does-not-exist");
 
@@ -25,7 +25,7 @@ describe("API error responses", () => {
 
   it("returns 400 for malformed JSON without logging an error", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const app = createApp();
+    const app = createTestApp();
 
     const response = await request(app)
       .post("/api/health")

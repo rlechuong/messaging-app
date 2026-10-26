@@ -5,7 +5,7 @@ import { z } from "zod";
 import { HttpError } from "../lib/http-error.ts";
 import { errorHandler } from "./error-handler.ts";
 
-const createTestApp = () => {
+const createErrorTestApp = () => {
   const app = express();
 
   app.get("/http-error", () => {
@@ -28,7 +28,7 @@ const createTestApp = () => {
 
 describe("errorHandler", () => {
   it("responds to an HttpError with its status and message", async () => {
-    const app = createTestApp();
+    const app = createErrorTestApp();
 
     const response = await request(app).get("/http-error");
 
@@ -37,7 +37,7 @@ describe("errorHandler", () => {
   });
 
   it("responds to a ZodError with 400 and the field errors", async () => {
-    const app = createTestApp();
+    const app = createErrorTestApp();
 
     const response = await request(app).get("/zod-error");
 
@@ -52,7 +52,7 @@ describe("errorHandler", () => {
 
   it("responds to unexpected errors with 500 and a generic message", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const app = createTestApp();
+    const app = createErrorTestApp();
 
     const response = await request(app).get("/unexpected-error");
 

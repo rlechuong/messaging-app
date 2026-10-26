@@ -1,9 +1,11 @@
 import { generateSessionToken, hashSessionToken } from "./session-token.ts";
 import type { PrismaClient } from "../../generated/prisma/client.ts";
+import { publicUserSelect } from "./public-user.ts";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const SESSION_DURATION_MS = 30 * DAY_MS;
 export const SESSION_RENEWAL_THRESHOLD_MS = SESSION_DURATION_MS / 2;
+export const SESSION_COOKIE_NAME = "session";
 
 export const createSession = async (prisma: PrismaClient, userId: string) => {
   const token = generateSessionToken();
@@ -29,14 +31,7 @@ export const validateSessionToken = async (prisma: PrismaClient, token: string) 
     },
     include: {
       user: {
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          displayName: true,
-          avatarPublicId: true,
-          bio: true,
-        },
+        select: publicUserSelect,
       },
     },
   });
