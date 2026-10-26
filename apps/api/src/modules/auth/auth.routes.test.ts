@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../../test/app.ts";
 import { testPrisma } from "../../test/database.ts";
+import { createTestUser } from "../../test/factories.ts";
 import { verifyPassword } from "./password.ts";
 
 const validRegisterInput = {
@@ -72,5 +73,58 @@ describe("POST /api/auth/register", () => {
       },
     });
     expect(await testPrisma.user.count()).toBe(0);
+  });
+
+  it("rejects a taken email with 409", async () => {
+    const app = createTestApp();
+    await createTestUser();
+
+    const response = await request(app)
+      .post("/api/auth/register")
+      .send({ ...validRegisterInput, username: "richard2" });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: { message: "Email is already in use." } });
+    expect(await testPrisma.user.count()).toBe(1);
+  });
+
+  it("rejects a taken username with 409", async () => {
+    const app = createTestApp();
+    await createTestUser();
+
+    const response = await request(app)
+      .post("/api/auth/register")
+      .send({ ...validRegisterInput, email: "richard2@example.com" });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: { message: "Username is already taken." } });
+    expect(await testPrisma.user.count()).toBe(1);
+  });
+
+  it("treats emails as case-insensitive", async () => {
+    const app = createTestApp();
+    await createTestUser();
+
+    const response = await request(app)
+      .post("/api/auth/register")
+      .send({ ...validRegisterInput, email: "Richard@Example.COM", username: "richard2" });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: { message: "Email is already in use." } });
+    expect(await testPrisma.user.count()).toBe(1);
+  });
+
+  it("allows only one of two simultaneous identical registrations", async () => {
+    const app = createTestApp();
+
+    const [first, second] = await Promise.all([
+      request(app).post("/api/auth/register").send(validRegisterInput),
+      request(app).post("/api/auth/register").send(validRegisterInput),
+    ]);
+
+    const statuses = [first.status, second.status].sort((a, b) => a - b);
+
+    expect(statuses).toEqual([201, 409]);
+    expect(await testPrisma.user.count()).toBe(1);
   });
 });
