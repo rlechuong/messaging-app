@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../../test/app.ts";
 import { testPrisma } from "../../test/database.ts";
 import { createTestUser } from "../../test/factories.ts";
-import { verifyPassword } from "./password.ts";
+import { hashPassword, verifyPassword } from "./password.ts";
 
 const validRegisterInput = {
   email: "richard@example.com",
@@ -126,5 +126,97 @@ describe("POST /api/auth/register", () => {
 
     expect(statuses).toEqual([201, 409]);
     expect(await testPrisma.user.count()).toBe(1);
+  });
+});
+
+describe("POST /api/auth/login", () => {
+  const validLoginInput = {
+    email: "richard@example.com",
+    password: "the art of war is strong",
+  };
+
+  beforeEach(async () => {
+    await createTestUser({ passwordHash: await hashPassword(validLoginInput.password) });
+  });
+
+  it("responds 200 with the user and sets a session cookie", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).post("/api/auth/login").send(validLoginInput);
+
+    const cookie = response.get("Set-Cookie")?.[0];
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      user: {
+        email: "richard@example.com",
+        username: "richard",
+      },
+    });
+    expect(cookie).toContain("HttpOnly");
+  });
+
+  it("never returns passwordHash", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).post("/api/auth/login").send(validLoginInput);
+
+    expect(response.status).toBe(200);
+    expect(response.body).not.toHaveProperty(["user", "passwordHash"]);
+  });
+
+  it("rejects a wrong password with 401 and a generic message and creates no session", async () => {
+    const app = createTestApp();
+
+    const response = await request(app)
+      .post("/api/auth/login")
+      .send({ ...validLoginInput, password: "the art of war is weak" });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: { message: "Invalid email or password." } });
+    expect(await testPrisma.session.count()).toBe(0);
+  });
+
+  it("responds identically to an unknown email and a wrong password", async () => {
+    const app = createTestApp();
+
+    const wrongPassword = await request(app)
+      .post("/api/auth/login")
+      .send({ ...validLoginInput, password: "the art of war is weak" });
+    const unknownEmail = await request(app)
+      .post("/api/auth/login")
+      .send({ ...validLoginInput, email: "nobody@example.com" });
+
+    expect(unknownEmail.status).toBe(wrongPassword.status);
+    expect(unknownEmail.body).toEqual(wrongPassword.body);
+  });
+
+  it("accepts the email in any case", async () => {
+    const app = createTestApp();
+
+    const response = await request(app)
+      .post("/api/auth/login")
+      .send({ ...validLoginInput, email: "Richard@Example.COM" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      user: {
+        email: "richard@example.com",
+        username: "richard",
+      },
+    });
+  });
+
+  it("rejects an empty password with 400", async () => {
+    const app = createTestApp();
+
+    const response = await request(app)
+      .post("/api/auth/login")
+      .send({ ...validLoginInput, password: "" });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: { message: "Validation failed", fieldErrors: { password: ["Password is required."] } },
+    });
   });
 });

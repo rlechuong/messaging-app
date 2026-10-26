@@ -1,9 +1,13 @@
-import type { RegisterInput } from "@messaging-app/shared";
+import type { LoginInput, RegisterInput } from "@messaging-app/shared";
 import { Prisma, type PrismaClient } from "../../generated/prisma/client.ts";
 import { HttpError } from "../../lib/http-error.ts";
-import { hashPassword } from "./password.ts";
+import { hashPassword, verifyPassword } from "./password.ts";
 import { publicUserSelect } from "./public-user.ts";
 import { createSession } from "./session.ts";
+
+// Verified against when no user matches, so a login attempt with an unknown email takes the
+// same time as one with a wrong password. Response time does not reveal existing emails.
+const DUMMY_PASSWORD_HASH = await hashPassword("dummy password used for timing");
 
 const createUser = async (prisma: PrismaClient, data: Prisma.UserCreateInput) => {
   try {
@@ -40,4 +44,26 @@ export const registerUser = async (prisma: PrismaClient, input: RegisterInput) =
   const { token, expiresAt } = await createSession(prisma, user.id);
 
   return { user, token, expiresAt };
+};
+
+export const loginUser = async (prisma: PrismaClient, input: LoginInput) => {
+  const user = await prisma.user.findUnique({
+    where: { email: input.email },
+    select: { ...publicUserSelect, passwordHash: true },
+  });
+
+  const passwordMatches = await verifyPassword(
+    user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+    input.password,
+  );
+
+  if (!user || !passwordMatches) {
+    throw new HttpError(401, "Invalid email or password.");
+  }
+
+  const { passwordHash, ...publicUser } = user;
+
+  const { token, expiresAt } = await createSession(prisma, publicUser.id);
+
+  return { user: publicUser, token, expiresAt };
 };
