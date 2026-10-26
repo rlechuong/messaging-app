@@ -1,3 +1,4 @@
+import cookieParser from "cookie-parser";
 import express from "express";
 import type { PrismaClient } from "./generated/prisma/client.ts";
 import { HttpError } from "./lib/http-error.ts";
@@ -13,6 +14,8 @@ export const createApp = ({ prisma, secureCookies }: AppDependencies) => {
   const app = express();
 
   app.use(express.json());
+
+  app.use(cookieParser());
 
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });

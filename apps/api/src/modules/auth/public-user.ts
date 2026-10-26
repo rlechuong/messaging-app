@@ -8,3 +8,5 @@ export const publicUserSelect = {
   avatarPublicId: true,
   bio: true,
 } satisfies Prisma.UserSelect;
+
+export type PublicUser = Prisma.UserGetPayload<{ select: typeof publicUserSelect }>;

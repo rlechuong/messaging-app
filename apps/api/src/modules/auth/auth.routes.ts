@@ -1,18 +1,8 @@
-import express, { type Response } from "express";
+import express from "express";
 import { loginSchema, registerSchema } from "@messaging-app/shared";
 import type { AppDependencies } from "../../app.ts";
-import { SESSION_COOKIE_NAME } from "./session.ts";
 import { loginUser, registerUser } from "./auth.service.ts";
-
-const setSessionCookie = (res: Response, token: string, expiresAt: Date, secure: boolean) => {
-  res.cookie(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure,
-    sameSite: "lax",
-    expires: expiresAt,
-    path: "/",
-  });
-};
+import { setSessionCookie } from "./session-cookie.ts";
 
 export const createAuthRouter = ({ prisma, secureCookies }: AppDependencies) => {
   const router = express.Router();
