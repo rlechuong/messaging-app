@@ -26,6 +26,7 @@ model User {
 
   sentMessages            Message[]
   conversationMemberships ConversationMember[]
+  sessions                Session[]
 }
 
 model Conversation {
@@ -66,4 +67,16 @@ model ConversationMember {
 
   @@id([userId, conversationId])
   @@index([conversationId, userId])
+}
+
+model Session {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tokenHash String   @unique
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
