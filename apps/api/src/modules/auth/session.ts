@@ -65,8 +65,10 @@ export const validateSessionToken = async (prisma: PrismaClient, token: string) 
     });
   }
 
-  return { session: { id: session.id, expiresAt }, user: session.user };
+  return { session: { id: session.id, expiresAt }, user: session.user, renewed: shouldRenew };
 };
+
+export type AuthContext = NonNullable<Awaited<ReturnType<typeof validateSessionToken>>>;
 
 export const invalidateSession = async (prisma: PrismaClient, sessionId: string) => {
   await prisma.session.deleteMany({

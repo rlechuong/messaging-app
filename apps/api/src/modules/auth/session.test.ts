@@ -112,6 +112,7 @@ describe("validateSessionToken", () => {
     expect(result.session.expiresAt).toEqual(storedSession.expiresAt);
     expect(storedSession.expiresAt.getTime()).toBeGreaterThanOrEqual(before + SESSION_DURATION_MS);
     expect(storedSession.expiresAt.getTime()).toBeLessThanOrEqual(after + SESSION_DURATION_MS);
+    expect(result.renewed).toBe(true);
   });
 
   it("doesn't change expiresAt when the session is fresh", async () => {
@@ -119,8 +120,10 @@ describe("validateSessionToken", () => {
     const { token, expiresAt } = await createSession(testPrisma, user.id);
 
     const result = await validateSessionToken(testPrisma, token);
+    if (!result) throw new Error("Expected a valid session.");
 
     expect(result).toMatchObject({ session: { expiresAt } });
+    expect(result.renewed).toBe(false);
   });
 
   it("never includes passwordHash in the returned user", async () => {

@@ -4,10 +4,16 @@ import { createTestApp } from "../../test/app.ts";
 import { testPrisma } from "../../test/database.ts";
 import { createTestUser } from "../../test/factories.ts";
 import { hashPassword, verifyPassword } from "./password.ts";
+import { DAY_MS, SESSION_RENEWAL_THRESHOLD_MS } from "./session.ts";
 
 const validRegisterInput = {
   email: "richard@example.com",
   username: "richard",
+  password: "the art of war is strong",
+};
+
+const validLoginInput = {
+  email: "richard@example.com",
   password: "the art of war is strong",
 };
 
@@ -130,11 +136,6 @@ describe("POST /api/auth/register", () => {
 });
 
 describe("POST /api/auth/login", () => {
-  const validLoginInput = {
-    email: "richard@example.com",
-    password: "the art of war is strong",
-  };
-
   beforeEach(async () => {
     await createTestUser({ passwordHash: await hashPassword(validLoginInput.password) });
   });
@@ -218,5 +219,164 @@ describe("POST /api/auth/login", () => {
     expect(response.body).toMatchObject({
       error: { message: "Validation failed", fieldErrors: { password: ["Password is required."] } },
     });
+  });
+});
+
+describe("GET /api/auth/me", () => {
+  it("returns the logged-in user after registering", async () => {
+    const app = createTestApp();
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send(validRegisterInput);
+
+    const response = await agent.get("/api/auth/me");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      user: { email: "richard@example.com", username: "richard" },
+    });
+  });
+
+  it("returns the logged-in user after logging in", async () => {
+    const app = createTestApp();
+    await createTestUser({ passwordHash: await hashPassword(validLoginInput.password) });
+    const agent = request.agent(app);
+    await agent.post("/api/auth/login").send(validLoginInput);
+
+    const response = await agent.get("/api/auth/me");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      user: { email: "richard@example.com", username: "richard" },
+    });
+  });
+
+  it("doesn't refresh the cookie for a fresh session", async () => {
+    const app = createTestApp();
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send(validRegisterInput);
+
+    const response = await agent.get("/api/auth/me");
+
+    expect(response.status).toBe(200);
+    expect(response.get("Set-Cookie")).toBeUndefined();
+  });
+
+  it("refreshes the cookie when the session is renewed", async () => {
+    const app = createTestApp();
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send(validRegisterInput);
+    await testPrisma.session.updateMany({
+      data: { expiresAt: new Date(Date.now() + SESSION_RENEWAL_THRESHOLD_MS - DAY_MS) },
+    });
+
+    const response = await agent.get("/api/auth/me");
+
+    expect(response.status).toBe(200);
+    expect(response.get("Set-Cookie")).toEqual([expect.stringMatching(/^session=/)]);
+  });
+
+  it("never returns passwordHash", async () => {
+    const app = createTestApp();
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send(validRegisterInput);
+
+    const response = await agent.get("/api/auth/me");
+
+    expect(response.status).toBe(200);
+    expect(response.body).not.toHaveProperty(["user", "passwordHash"]);
+  });
+
+  it("responds 401 without a session cookie", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).get("/api/auth/me");
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: { message: "Not authenticated." } });
+  });
+
+  it("responds 401 and clears the cookie for an invalid token", async () => {
+    const app = createTestApp();
+
+    const response = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", "session=not-a-real-token");
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: { message: "Not authenticated." } });
+    expect(response.get("Set-Cookie")).toEqual([expect.stringMatching(/^session=;/)]);
+  });
+
+  it("responds 401 for an expired session", async () => {
+    const app = createTestApp();
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send(validRegisterInput);
+    await testPrisma.session.updateMany({
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+
+    const response = await agent.get("/api/auth/me");
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: { message: "Not authenticated." } });
+  });
+});
+
+describe("POST /api/auth/logout", () => {
+  it("responds 204 and clears the cookie", async () => {
+    const app = createTestApp();
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send(validRegisterInput);
+
+    const response = await agent.post("/api/auth/logout");
+
+    expect(response.status).toBe(204);
+    expect(response.get("Set-Cookie")).toEqual([expect.stringMatching(/^session=;/)]);
+  });
+
+  it("ends the session", async () => {
+    const app = createTestApp();
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send(validRegisterInput);
+
+    await agent.post("/api/auth/logout");
+    const response = await agent.get("/api/auth/me");
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: { message: "Not authenticated." } });
+  });
+
+  it("deletes the session from the database", async () => {
+    const app = createTestApp();
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send(validRegisterInput);
+
+    await agent.post("/api/auth/logout");
+
+    expect(await testPrisma.session.count()).toBe(0);
+  });
+
+  it("doesn't log out the user's other device", async () => {
+    const app = createTestApp();
+    const firstAgent = request.agent(app);
+    const secondAgent = request.agent(app);
+    await firstAgent.post("/api/auth/register").send(validRegisterInput);
+    await secondAgent.post("/api/auth/login").send(validLoginInput);
+    await firstAgent.post("/api/auth/logout");
+
+    const firstDevice = await firstAgent.get("/api/auth/me");
+    const secondDevice = await secondAgent.get("/api/auth/me");
+
+    expect(firstDevice.status).toBe(401);
+    expect(secondDevice.status).toBe(200);
+  });
+
+  it("responds 401 when not logged in", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).post("/api/auth/logout");
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: { message: "Not authenticated." } });
   });
 });
