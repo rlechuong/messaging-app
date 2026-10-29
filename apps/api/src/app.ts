@@ -1,5 +1,6 @@
 import cookieParser from "cookie-parser";
 import express from "express";
+import helmet from "helmet";
 import type { PrismaClient } from "./generated/prisma/client.ts";
 import { HttpError } from "./lib/http-error.ts";
 import { errorHandler } from "./middleware/error-handler.ts";
@@ -12,6 +13,8 @@ export type AppDependencies = {
 
 export const createApp = ({ prisma, secureCookies }: AppDependencies) => {
   const app = express();
+
+  app.use(helmet());
 
   app.use(express.json());
 
