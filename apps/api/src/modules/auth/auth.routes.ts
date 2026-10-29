@@ -1,6 +1,8 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { loginSchema, registerSchema } from "@messaging-app/shared";
 import type { AppDependencies } from "../../app.ts";
+import { HttpError } from "../../lib/http-error.ts";
 import { loginUser, registerUser } from "./auth.service.ts";
 import { createRequireAuth, getAuth } from "./require-auth.ts";
 import { clearSessionCookie, setSessionCookie } from "./session-cookie.ts";
@@ -9,9 +11,31 @@ import { invalidateSession } from "./session.ts";
 export const createAuthRouter = ({ prisma, secureCookies }: AppDependencies) => {
   const router = express.Router();
 
+  const registerRateLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 5,
+    skipSuccessfulRequests: false,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: (_req, _res, next) => {
+      next(new HttpError(429, "Too many attempts. Please try again later."));
+    },
+  });
+
+  const loginRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    skipSuccessfulRequests: true,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: (_req, _res, next) => {
+      next(new HttpError(429, "Too many attempts. Please try again later."));
+    },
+  });
+
   const requireAuth = createRequireAuth({ prisma, secureCookies });
 
-  router.post("/register", async (req, res) => {
+  router.post("/register", registerRateLimiter, async (req, res) => {
     const input = registerSchema.parse(req.body);
 
     const { user, token, expiresAt } = await registerUser(prisma, input);
@@ -21,7 +45,7 @@ export const createAuthRouter = ({ prisma, secureCookies }: AppDependencies) => 
     res.status(201).json({ user });
   });
 
-  router.post("/login", async (req, res) => {
+  router.post("/login", loginRateLimiter, async (req, res) => {
     const input = loginSchema.parse(req.body);
 
     const { user, token, expiresAt } = await loginUser(prisma, input);

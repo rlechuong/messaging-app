@@ -37,3 +37,26 @@ describe("API error responses", () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 });
+
+describe("security headers", () => {
+  it("sets security headers and hides X-Powered-By", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).get("/api/health");
+
+    expect(response.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response.get("X-Powered-By")).toBeUndefined();
+  });
+
+  it("sets security headers on early errors", async () => {
+    const app = createTestApp();
+
+    const response = await request(app)
+      .post("/api/health")
+      .set("Content-Type", "application/json")
+      .send('{ "email": ');
+
+    expect(response.status).toBe(400);
+    expect(response.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+});

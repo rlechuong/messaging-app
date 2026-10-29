@@ -380,3 +380,85 @@ describe("POST /api/auth/logout", () => {
     expect(response.body).toEqual({ error: { message: "Not authenticated." } });
   });
 });
+
+describe("rate limiting", () => {
+  it("responds 429 with too many attempts message after 10 failed login attempts", async () => {
+    const app = createTestApp();
+    await createTestUser({ passwordHash: await hashPassword(validLoginInput.password) });
+    let lastAllowed;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      lastAllowed = await request(app)
+        .post("/api/auth/login")
+        .send({ ...validLoginInput, password: "wrong password here" });
+    }
+
+    const response = await request(app)
+      .post("/api/auth/login")
+      .send({ ...validLoginInput, password: "wrong password here" });
+
+    expect(lastAllowed?.status).toBe(401);
+    expect(response.status).toBe(429);
+    expect(response.body).toEqual({
+      error: { message: "Too many attempts. Please try again later." },
+    });
+  });
+
+  it("rejects the correct password once limited", async () => {
+    const app = createTestApp();
+    await createTestUser({ passwordHash: await hashPassword(validLoginInput.password) });
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await request(app)
+        .post("/api/auth/login")
+        .send({ ...validLoginInput, password: "wrong password here" });
+    }
+
+    const response = await request(app).post("/api/auth/login").send(validLoginInput);
+
+    expect(response.status).toBe(429);
+    expect(response.body).toEqual({
+      error: { message: "Too many attempts. Please try again later." },
+    });
+  });
+
+  it("doesn't count successful logins toward the limit", async () => {
+    const app = createTestApp();
+    await createTestUser({ passwordHash: await hashPassword(validLoginInput.password) });
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await request(app).post("/api/auth/login").send(validLoginInput);
+    }
+
+    const response = await request(app).post("/api/auth/login").send(validLoginInput);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      user: { email: "richard@example.com", username: "richard" },
+    });
+  });
+
+  it("responds 429 for the sixth registration in an hour", async () => {
+    const app = createTestApp();
+    const statuses = [];
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const response = await request(app)
+        .post("/api/auth/register")
+        .send({
+          email: `user${attempt}@example.com`,
+          username: `user${attempt}`,
+          password: `the art of war ${attempt} is strong`,
+        });
+      statuses.push(response.status);
+    }
+
+    const response = await request(app).post("/api/auth/register").send({
+      email: "user5@example.com",
+      username: "user5",
+      password: "the art of war 5 is strong",
+    });
+
+    expect(statuses).toEqual([201, 201, 201, 201, 201]);
+    expect(response.status).toBe(429);
+    expect(response.body).toEqual({
+      error: { message: "Too many attempts. Please try again later." },
+    });
+  });
+});
