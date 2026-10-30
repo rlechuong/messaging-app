@@ -9,8 +9,12 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@messaging-app/shared": "workspace:*",
+    "@tanstack/react-query": "^5.105.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-router": "^8.5.1",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
