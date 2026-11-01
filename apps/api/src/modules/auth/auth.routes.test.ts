@@ -92,7 +92,12 @@ describe("POST /api/auth/register", () => {
       .send({ ...validRegisterInput, username: "richard2" });
 
     expect(response.status).toBe(409);
-    expect(response.body).toEqual({ error: { message: "Email is already in use." } });
+    expect(response.body).toEqual({
+      error: {
+        message: "Email is already in use.",
+        fieldErrors: { email: ["Email is already in use."] },
+      },
+    });
     expect(await testPrisma.user.count()).toBe(1);
   });
 
@@ -105,7 +110,12 @@ describe("POST /api/auth/register", () => {
       .send({ ...validRegisterInput, email: "richard2@example.com" });
 
     expect(response.status).toBe(409);
-    expect(response.body).toEqual({ error: { message: "Username is already taken." } });
+    expect(response.body).toEqual({
+      error: {
+        message: "Username is already taken.",
+        fieldErrors: { username: ["Username is already taken."] },
+      },
+    });
     expect(await testPrisma.user.count()).toBe(1);
   });
 
@@ -118,7 +128,12 @@ describe("POST /api/auth/register", () => {
       .send({ ...validRegisterInput, email: "Richard@Example.COM", username: "richard2" });
 
     expect(response.status).toBe(409);
-    expect(response.body).toEqual({ error: { message: "Email is already in use." } });
+    expect(response.body).toEqual({
+      error: {
+        message: "Email is already in use.",
+        fieldErrors: { email: ["Email is already in use."] },
+      },
+    });
     expect(await testPrisma.user.count()).toBe(1);
   });
 

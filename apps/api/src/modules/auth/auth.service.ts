@@ -28,9 +28,11 @@ export const registerUser = async (prisma: PrismaClient, input: RegisterInput) =
 
   if (existingUser) {
     if (existingUser.email === input.email) {
-      throw new HttpError(409, "Email is already in use.");
+      throw new HttpError(409, "Email is already in use.", { email: ["Email is already in use."] });
     }
-    throw new HttpError(409, "Username is already taken.");
+    throw new HttpError(409, "Username is already taken.", {
+      username: ["Username is already taken."],
+    });
   }
 
   const passwordHash = await hashPassword(input.password);

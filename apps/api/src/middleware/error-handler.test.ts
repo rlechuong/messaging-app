@@ -12,6 +12,10 @@ const createErrorTestApp = () => {
     throw new HttpError(409, "Email is already in use.");
   });
 
+  app.get("/http-error-field-errors", () => {
+    throw new HttpError(409, "Email is already in use.", { email: ["Email is already in use."] });
+  });
+
   app.get("/zod-error", () => {
     z.object({ name: z.string().min(3, "Name must be at least 3 characters.") }).parse({
       name: "ab",
@@ -34,6 +38,20 @@ describe("errorHandler", () => {
 
     expect(response.status).toBe(409);
     expect(response.body).toEqual({ error: { message: "Email is already in use." } });
+  });
+
+  it("responds to an HttpError with field errors with its status, message, and field errors", async () => {
+    const app = createErrorTestApp();
+
+    const response = await request(app).get("/http-error-field-errors");
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({
+      error: {
+        message: "Email is already in use.",
+        fieldErrors: { email: ["Email is already in use."] },
+      },
+    });
   });
 
   it("responds to a ZodError with 400 and the field errors", async () => {

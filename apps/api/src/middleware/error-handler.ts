@@ -17,6 +17,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(err.status).json({
       error: {
         message: err.message,
+        ...(err.fieldErrors && { fieldErrors: err.fieldErrors }),
       },
     });
     return;
