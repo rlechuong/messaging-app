@@ -29,6 +29,7 @@ export const apiFetch = async <TSchema extends z.ZodType>(
     method,
     headers: hasBody ? { "Content-Type": "application/json" } : undefined,
     body: hasBody ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(10_000),
   });
 
   const data: unknown =
@@ -41,7 +42,12 @@ export const apiFetch = async <TSchema extends z.ZodType>(
       throw new ApiError(response.status, parsed.data.error.message, parsed.data.error.fieldErrors);
     }
 
-    throw new ApiError(response.status, "Something went wrong.");
+    throw new ApiError(
+      response.status,
+      response.status >= 500
+        ? "The server is unavailable right now. Please try again."
+        : "Something went wrong.",
+    );
   }
 
   return schema.parse(data);
