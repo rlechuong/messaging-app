@@ -3,7 +3,10 @@ import { loginSchema, type LoginInput } from "@messaging-app/shared";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router";
 import { useLogin } from "./use-login.ts";
-import { ApiError } from "../../lib/api-client.ts";
+import { FormField } from "../../components/FormField.tsx";
+import { applyServerErrors } from "../../lib/form-errors.ts";
+
+const loginFields = ["email", "password"] as const;
 
 export const LoginPage = () => {
   const {
@@ -17,12 +20,7 @@ export const LoginPage = () => {
 
   const onSubmit = (values: LoginInput) => {
     login.mutate(values, {
-      onError: (error) => {
-        setError("root.server", {
-          message:
-            error instanceof ApiError ? error.message : "Couldn't connect. Please try again.",
-        });
-      },
+      onError: (error) => applyServerErrors(error, setError, loginFields),
     });
   };
 
@@ -30,33 +28,26 @@ export const LoginPage = () => {
     <main>
       <h1>Log in</h1>
 
-      {errors.root?.server && <p role="alert">{errors.root.server.message}</p>}
       <form onSubmit={(event) => void handleSubmit(onSubmit)(event)} noValidate>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            aria-invalid={errors.email ? true : undefined}
-            aria-describedby={errors.email ? "email-error" : undefined}
-            type="email"
-            autoComplete="email"
-            {...register("email")}
-          />
-          {errors.email && <p id="email-error">{errors.email.message}</p>}
-        </div>
+        {errors.root?.server && <p role="alert">{errors.root.server.message}</p>}
 
-        <div>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            aria-invalid={errors.password ? true : undefined}
-            aria-describedby={errors.password ? "password-error" : undefined}
-            type="password"
-            autoComplete="current-password"
-            {...register("password")}
-          />
-          {errors.password && <p id="password-error">{errors.password.message}</p>}
-        </div>
+        <FormField
+          id="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          error={errors.email?.message}
+          registration={register("email")}
+        />
+
+        <FormField
+          id="password"
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          error={errors.password?.message}
+          registration={register("password")}
+        />
 
         <button type="submit" disabled={login.isPending}>
           {login.isPending ? "Logging in..." : "Log in"}
