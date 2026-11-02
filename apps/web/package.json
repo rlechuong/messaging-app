@@ -6,18 +6,32 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@hookform/resolvers": "^6.0.2",
+    "@messaging-app/shared": "workspace:*",
+    "@tanstack/react-query": "^5.105.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-hook-form": "^7.91.0",
+    "react-router": "^8.5.1",
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/node": "catalog:",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^30.1.3",
+    "msw": "^3.0.3",
     "typescript": "catalog:",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "vitest": "catalog:"
   }
 }

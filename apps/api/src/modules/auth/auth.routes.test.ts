@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import request from "supertest";
+import { authResponseSchema } from "@messaging-app/shared";
 import { createTestApp } from "../../test/app.ts";
 import { testPrisma } from "../../test/database.ts";
 import { createTestUser } from "../../test/factories.ts";
@@ -28,6 +29,7 @@ describe("POST /api/auth/register", () => {
       user: { email: "richard@example.com", username: "richard" },
     });
     expect(response.body).not.toHaveProperty(["user", "passwordHash"]);
+    expect(() => authResponseSchema.parse(response.body)).not.toThrow();
   });
 
   it("stores a hashed password", async () => {
@@ -90,7 +92,12 @@ describe("POST /api/auth/register", () => {
       .send({ ...validRegisterInput, username: "richard2" });
 
     expect(response.status).toBe(409);
-    expect(response.body).toEqual({ error: { message: "Email is already in use." } });
+    expect(response.body).toEqual({
+      error: {
+        message: "Email is already in use.",
+        fieldErrors: { email: ["Email is already in use."] },
+      },
+    });
     expect(await testPrisma.user.count()).toBe(1);
   });
 
@@ -103,7 +110,12 @@ describe("POST /api/auth/register", () => {
       .send({ ...validRegisterInput, email: "richard2@example.com" });
 
     expect(response.status).toBe(409);
-    expect(response.body).toEqual({ error: { message: "Username is already taken." } });
+    expect(response.body).toEqual({
+      error: {
+        message: "Username is already taken.",
+        fieldErrors: { username: ["Username is already taken."] },
+      },
+    });
     expect(await testPrisma.user.count()).toBe(1);
   });
 
@@ -116,7 +128,12 @@ describe("POST /api/auth/register", () => {
       .send({ ...validRegisterInput, email: "Richard@Example.COM", username: "richard2" });
 
     expect(response.status).toBe(409);
-    expect(response.body).toEqual({ error: { message: "Email is already in use." } });
+    expect(response.body).toEqual({
+      error: {
+        message: "Email is already in use.",
+        fieldErrors: { email: ["Email is already in use."] },
+      },
+    });
     expect(await testPrisma.user.count()).toBe(1);
   });
 
@@ -155,6 +172,7 @@ describe("POST /api/auth/login", () => {
       },
     });
     expect(cookie).toContain("HttpOnly");
+    expect(() => authResponseSchema.parse(response.body)).not.toThrow();
   });
 
   it("never returns passwordHash", async () => {
@@ -234,6 +252,7 @@ describe("GET /api/auth/me", () => {
     expect(response.body).toMatchObject({
       user: { email: "richard@example.com", username: "richard" },
     });
+    expect(() => authResponseSchema.parse(response.body)).not.toThrow();
   });
 
   it("returns the logged-in user after logging in", async () => {
@@ -248,6 +267,7 @@ describe("GET /api/auth/me", () => {
     expect(response.body).toMatchObject({
       user: { email: "richard@example.com", username: "richard" },
     });
+    expect(() => authResponseSchema.parse(response.body)).not.toThrow();
   });
 
   it("doesn't refresh the cookie for a fresh session", async () => {
