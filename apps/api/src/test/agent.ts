@@ -1,4 +1,4 @@
-import type { RegisterInput } from "@messaging-app/shared";
+import { authResponseSchema, type RegisterInput } from "@messaging-app/shared";
 import type { Express } from "express";
 import request from "supertest";
 
@@ -16,5 +16,7 @@ export const createLoggedInAgent = async (app: Express, overrides: Partial<Regis
     throw new Error(`Test registration failed with ${response.status}`);
   }
 
-  return agent;
+  const { user } = authResponseSchema.parse(response.body);
+
+  return { agent, user };
 };

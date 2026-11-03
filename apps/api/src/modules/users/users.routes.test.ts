@@ -22,7 +22,7 @@ describe("GET /api/users?search=", () => {
       username: "thomas",
       displayName: "phuong",
     });
-    const agent = await createLoggedInAgent(app);
+    const { agent } = await createLoggedInAgent(app);
 
     const response = await agent.get("/api/users?search=THOM");
 
@@ -39,7 +39,7 @@ describe("GET /api/users?search=", () => {
       username: "thomas",
       displayName: "phuong",
     });
-    const agent = await createLoggedInAgent(app);
+    const { agent } = await createLoggedInAgent(app);
 
     const response = await agent.get("/api/users?search=phu");
 
@@ -56,7 +56,7 @@ describe("GET /api/users?search=", () => {
       username: "richard2",
       displayName: "richard2",
     });
-    const agent = await createLoggedInAgent(app);
+    const { agent } = await createLoggedInAgent(app);
 
     const response = await agent.get("/api/users?search=rich");
 
@@ -71,7 +71,7 @@ describe("GET /api/users?search=", () => {
       username: "thomas",
       displayName: "phuong",
     });
-    const agent = await createLoggedInAgent(app);
+    const { agent } = await createLoggedInAgent(app);
 
     const response = await agent.get("/api/users?search=THOM");
 
@@ -93,7 +93,7 @@ describe("GET /api/users?search=", () => {
 
   it("responds 400 for an empty search", async () => {
     const app = createTestApp();
-    const agent = await createLoggedInAgent(app);
+    const { agent } = await createLoggedInAgent(app);
 
     const response = await agent.get("/api/users?search=");
 
