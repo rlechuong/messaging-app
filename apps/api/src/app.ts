@@ -5,6 +5,7 @@ import type { PrismaClient } from "./generated/prisma/client.ts";
 import { HttpError } from "./lib/http-error.ts";
 import { errorHandler } from "./middleware/error-handler.ts";
 import { createAuthRouter } from "./modules/auth/auth.routes.ts";
+import { createUsersRouter } from "./modules/users/users.routes.ts";
 
 export type AppDependencies = {
   prisma: PrismaClient;
@@ -25,6 +26,7 @@ export const createApp = ({ prisma, secureCookies }: AppDependencies) => {
   });
 
   app.use("/api/auth", createAuthRouter({ prisma, secureCookies }));
+  app.use("/api/users", createUsersRouter({ prisma, secureCookies }));
 
   app.use("/api", () => {
     throw new HttpError(404, "Not found");
