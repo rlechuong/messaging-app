@@ -1,10 +1,20 @@
-import { conversationResponseSchema } from "@messaging-app/shared";
+import { conversationResponseSchema, conversationsResponseSchema } from "@messaging-app/shared";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { createLoggedInAgent } from "../../test/agent.ts";
+import { createLoggedInAgent, type TestAgent } from "../../test/agent.ts";
 import { createTestApp } from "../../test/app.ts";
 import { testPrisma } from "../../test/database.ts";
 import { createTestUser } from "../../test/factories.ts";
+
+const startConversation = async (agent: TestAgent, userId: string) => {
+  const response = await agent.post("/api/conversations").send({ type: "DIRECT", userId });
+
+  if (response.status !== 201) {
+    throw new Error(`Starting conversation failed with ${response.status}`);
+  }
+
+  return conversationResponseSchema.parse(response.body).conversation;
+};
 
 describe("POST /api/conversations", () => {
   it("responds 401 without a session", async () => {
@@ -155,5 +165,93 @@ describe("POST /api/conversations", () => {
 
     expect(statuses).toEqual([200, 201]);
     expect(await testPrisma.conversation.count()).toBe(1);
+  });
+});
+
+describe("GET /api/conversations", () => {
+  it("responds 401 without a session", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).get("/api/conversations");
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: { message: "Not authenticated." } });
+  });
+
+  it("returns an empty list for a new user", async () => {
+    const app = createTestApp();
+    const { agent } = await createLoggedInAgent(app);
+
+    const response = await agent.get("/api/conversations");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ conversations: [] });
+  });
+
+  it("includes only conversations the user is a member of", async () => {
+    const app = createTestApp();
+    const { agent } = await createLoggedInAgent(app);
+    const { agent: secondAgent, user: secondUser } = await createLoggedInAgent(app, {
+      email: "thomas@example.com",
+      username: "thomas",
+    });
+    const thirdUser = await createTestUser({
+      email: "lam@example.com",
+      username: "lam",
+    });
+
+    const ownConversation = await startConversation(agent, secondUser.id);
+    await startConversation(secondAgent, thirdUser.id);
+
+    const response = await agent.get("/api/conversations");
+    expect(response.status).toBe(200);
+    const { conversations } = conversationsResponseSchema.parse(response.body);
+
+    expect(conversations.map((conversation) => conversation.id)).toEqual([ownConversation.id]);
+  });
+
+  it("orders conversations from newest to oldest", async () => {
+    const app = createTestApp();
+    const { agent } = await createLoggedInAgent(app);
+    const secondUser = await createTestUser({
+      email: "thomas@example.com",
+      username: "thomas",
+    });
+    const thirdUser = await createTestUser({
+      email: "lam@example.com",
+      username: "lam",
+    });
+    const fourthUser = await createTestUser({
+      email: "ba@example.com",
+      username: "ba",
+    });
+
+    const newerConversation = await startConversation(agent, secondUser.id);
+    const olderConversation = await startConversation(agent, thirdUser.id);
+    const nullConversation = await startConversation(agent, fourthUser.id);
+
+    const newerDate = new Date(Date.now() + 60_000);
+    const olderDate = new Date(Date.now() - 60_000);
+
+    await testPrisma.conversation.update({
+      where: { id: newerConversation.id },
+      data: { lastMessageAt: newerDate },
+    });
+
+    await testPrisma.conversation.update({
+      where: { id: olderConversation.id },
+      data: { lastMessageAt: olderDate },
+    });
+
+    const response = await agent.get("/api/conversations");
+    expect(response.status).toBe(200);
+    const { conversations } = conversationsResponseSchema.parse(response.body);
+    const conversationIds = conversations.map((conversation) => conversation.id);
+
+    expect(conversationIds).toEqual([
+      newerConversation.id,
+      olderConversation.id,
+      nullConversation.id,
+    ]);
   });
 });

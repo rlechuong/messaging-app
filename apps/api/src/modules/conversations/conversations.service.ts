@@ -56,3 +56,10 @@ export const findOrCreateDirectConversation = async (
     throw error;
   }
 };
+
+export const listConversations = (prisma: PrismaClient, userId: string) =>
+  prisma.conversation.findMany({
+    where: { members: { some: { userId } } },
+    select: conversationSelect,
+    orderBy: [{ lastMessageAt: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+  });

@@ -2,6 +2,8 @@ import { authResponseSchema, type RegisterInput } from "@messaging-app/shared";
 import type { Express } from "express";
 import request from "supertest";
 
+export type TestAgent = ReturnType<typeof request.agent>;
+
 export const createLoggedInAgent = async (app: Express, overrides: Partial<RegisterInput> = {}) => {
   const agent = request.agent(app);
 
