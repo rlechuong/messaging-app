@@ -1,8 +1,12 @@
-import { authResponseSchema, type RegisterInput } from "@messaging-app/shared";
+import {
+  authResponseSchema,
+  conversationResponseSchema,
+  type RegisterInput,
+} from "@messaging-app/shared";
 import type { Express } from "express";
 import request from "supertest";
 
-export type TestAgent = ReturnType<typeof request.agent>;
+type TestAgent = ReturnType<typeof request.agent>;
 
 export const createLoggedInAgent = async (app: Express, overrides: Partial<RegisterInput> = {}) => {
   const agent = request.agent(app);
@@ -21,4 +25,14 @@ export const createLoggedInAgent = async (app: Express, overrides: Partial<Regis
   const { user } = authResponseSchema.parse(response.body);
 
   return { agent, user };
+};
+
+export const startConversation = async (agent: TestAgent, userId: string) => {
+  const response = await agent.post("/api/conversations").send({ type: "DIRECT", userId });
+
+  if (response.status !== 201) {
+    throw new Error(`Starting conversation failed with ${response.status}`);
+  }
+
+  return conversationResponseSchema.parse(response.body).conversation;
 };

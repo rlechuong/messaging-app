@@ -2,6 +2,7 @@ import { createConversationSchema } from "@messaging-app/shared";
 import express from "express";
 import type { AppDependencies } from "../../app.ts";
 import { createRequireAuth, getAuth } from "../auth/require-auth.ts";
+import { createMessagesRouter } from "../messages/messages.routes.ts";
 import { toConversationResponse } from "./conversation-response.ts";
 import { findOrCreateDirectConversation, listConversations } from "./conversations.service.ts";
 
@@ -9,6 +10,8 @@ export const createConversationsRouter = ({ prisma, secureCookies }: AppDependen
   const router = express.Router();
 
   router.use(createRequireAuth({ prisma, secureCookies }));
+
+  router.use("/:conversationId/messages", createMessagesRouter({ prisma }));
 
   router.post("/", async (req, res) => {
     const { user } = getAuth(res);

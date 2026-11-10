@@ -1,20 +1,10 @@
 import { conversationResponseSchema, conversationsResponseSchema } from "@messaging-app/shared";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { createLoggedInAgent, type TestAgent } from "../../test/agent.ts";
+import { createLoggedInAgent, startConversation } from "../../test/agent.ts";
 import { createTestApp } from "../../test/app.ts";
 import { testPrisma } from "../../test/database.ts";
 import { createTestUser } from "../../test/factories.ts";
-
-const startConversation = async (agent: TestAgent, userId: string) => {
-  const response = await agent.post("/api/conversations").send({ type: "DIRECT", userId });
-
-  if (response.status !== 201) {
-    throw new Error(`Starting conversation failed with ${response.status}`);
-  }
-
-  return conversationResponseSchema.parse(response.body).conversation;
-};
 
 describe("POST /api/conversations", () => {
   it("responds 401 without a session", async () => {
