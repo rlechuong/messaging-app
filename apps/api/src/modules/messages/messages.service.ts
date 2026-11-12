@@ -13,6 +13,12 @@ type SendMessageParams = {
   content: string;
 };
 
+type ListMessagesParams = {
+  conversationId: string;
+  before?: string;
+  limit: number;
+};
+
 export const assertConversationMember = async (
   prisma: PrismaClient,
   { conversationId, userId }: AssertConversationMemberParams,
@@ -43,4 +49,25 @@ export const sendMessage = async (
   ]);
 
   return message;
+};
+
+export const listMessages = async (
+  prisma: PrismaClient,
+  { conversationId, before, limit }: ListMessagesParams,
+) => {
+  const messages = await prisma.message.findMany({
+    where: {
+      conversationId,
+      ...(before ? { id: { lt: before } } : {}),
+    },
+    orderBy: { id: "desc" },
+    take: limit + 1,
+    select: messageSelect,
+  });
+
+  const hasMore = messages.length > limit;
+  const page = messages.slice(0, limit);
+  const nextCursor = hasMore ? (page.at(-1)?.id ?? null) : null;
+
+  return { messages: page, nextCursor };
 };

@@ -1,6 +1,7 @@
 import {
   authResponseSchema,
   conversationResponseSchema,
+  messageResponseSchema,
   type RegisterInput,
 } from "@messaging-app/shared";
 import type { Express } from "express";
@@ -35,4 +36,20 @@ export const startConversation = async (agent: TestAgent, userId: string) => {
   }
 
   return conversationResponseSchema.parse(response.body).conversation;
+};
+
+export const sendTestMessage = async (
+  agent: TestAgent,
+  conversationId: string,
+  content: string,
+) => {
+  const response = await agent
+    .post(`/api/conversations/${conversationId}/messages`)
+    .send({ content });
+
+  if (response.status !== 201) {
+    throw new Error(`Sending message failed with ${response.status}`);
+  }
+
+  return messageResponseSchema.parse(response.body).message;
 };
