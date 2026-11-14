@@ -1,15 +1,7 @@
-import type { Conversation, UserSummary } from "@messaging-app/shared";
+import type { Conversation } from "@messaging-app/shared";
 import { describe, expect, it } from "vitest";
+import { makeUser } from "../../test/factories.ts";
 import { getConversationTitle } from "./get-conversation-title.ts";
-
-const makeUser = (overrides: Partial<UserSummary> = {}): UserSummary => ({
-  id: crypto.randomUUID(),
-  username: "richard",
-  displayName: null,
-  avatarPublicId: null,
-  bio: null,
-  ...overrides,
-});
 
 const makeConversation = (overrides: Partial<Conversation> = {}): Conversation => ({
   id: crypto.randomUUID(),
